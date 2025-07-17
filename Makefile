@@ -1,17 +1,22 @@
 CC = gcc
-CFLAGS = -Wall -W -O2
+CFLAGS = -Wall -W -O3
 
 GOAL = findaes
 OBJ  = main.o aes.o
 
 all: $(GOAL)
 
-cross: CC = i586-mingw32msvc-gcc
+cross: CC = i386-mingw32-gcc
+cross: STRIP= i386-mingw32-strip
 cross: EXT = .exe
-cross: $(GOAL)
+cross: $(GOAL).exe
+
+findaes.exe: $(OBJ)
+	$(CC) $(CFLAGS) -o findaes.exe $(OBJ)
+	$(STRIP) findaes.exe
 
 findaes: $(OBJ)
-	$(CC) $(CFLAGS) -o $(GOAL)$(EXT) $(OBJ)
+	$(CC) $(CFLAGS) -o findaes $(OBJ)
 
 nice:
 	rm -f *~
@@ -19,11 +24,11 @@ nice:
 clean: nice
 	rm -f $(GOAL) $(GOAL).exe $(OBJ)
 
-DESTDIR = $(GOAL)-1.0
+DESTDIR = $(GOAL)-1.1
 
-package:
-	rm -rf $(DESTDIR) $(DESTDIR).rar
+package: clean cross
+	rm -rf $(DESTDIR) $(DESTDIR).zip
 	mkdir $(DESTDIR)
-	cp main.c aes.c aes.h Makefile $(DESTDIR)
-	rar a $(DESTDIR).rar -m5 $(DESTDIR)
+	cp main.c aes.c aes.h Makefile findaes.exe $(DESTDIR)
+	zip -r9 $(DESTDIR).zip $(DESTDIR)
 	rm -rf $(DESTDIR)
