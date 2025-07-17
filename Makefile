@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -W -O3
+CFLAGS = -Wall -W -O3 -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE
 
 GOAL = findaes
 OBJ  = main.o aes.o
@@ -24,7 +24,7 @@ nice:
 clean: nice
 	rm -f $(GOAL) $(GOAL).exe $(OBJ)
 
-DESTDIR = $(GOAL)-1.1
+DESTDIR = $(GOAL)-1.2
 
 package: clean cross
 	rm -rf $(DESTDIR) $(DESTDIR).zip

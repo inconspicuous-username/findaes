@@ -1,8 +1,9 @@
-// FindAES version 1.1 by Jesse Kornblum
+// FindAES version 1.2 by Jesse Kornblum
 // http://jessekornblum.com/tools/findaes/
 // This code is public domain.
 //
 // Revision History
+//  7 Feb 2012 - Added processing of multiple files
 //  3 Feb 2012 - Added entropy check. Limited to one file
 // 18 Jan 2011 - Initial version
 
@@ -18,9 +19,13 @@
 #define WINDOW_SIZE  AES256_KEY_SCHEDULE_SIZE
 
 
-void display_key(const unsigned char * key, uint64_t sz)
+/// @brief Hex-dump sz bytes of data to standard output
+///
+/// @param key Bytes to display
+/// @param sz Number of bytes to display
+void display_key(const unsigned char * key, size_t sz)
 {
-  uint64_t pos = 0;
+  size_t pos = 0;
   while (pos < sz)
   {
     printf("%02x ", key[pos]);
@@ -29,22 +34,38 @@ void display_key(const unsigned char * key, uint64_t sz)
   printf("\n");
 }
 
+
 /// @brief Returns true if any byte in the block repeats more than eight times
-int entropy(const unsigned char * buffer, size_t size)
+///
+/// @param buffer Buffer to scan
+/// @param size The size of the buffer
+/// @param first Is this the first buffer in the file? Used to clear
+/// the previous values, if any.
+/// @return Returns TRUE iff. the buffer contains more than eight repititions
+/// of any single byte, even if not next to each other. Otherwise, FALSE.
+int entropy(const unsigned char * buffer, size_t size,int first)
 {
   size_t i;
-  static unsigned int count[256] = {0};
+  static unsigned int count[256];
   static int first_entropy = 1;
   int result = 0;
+
+  if (first)
+    first_entropy = 1;
 
   // We only need to compute the full frequency count the first time
   if (first_entropy)
   {
     first_entropy = 0;
+
+    // Set the entropy to all zeros, then count values
+    for (i = 0 ; i < 256 ; ++i)
+      count[i] = 0;
     for (i = 0 ; i < size ; ++i)
       count[buffer[i]]++;
   }
   
+  // Search for repititions
   for (i = 0 ; i < 256 ; ++i)
   {
     if (count[i] > 8)
@@ -56,18 +77,21 @@ int entropy(const unsigned char * buffer, size_t size)
 
   // Shift the frequency counts
   count[buffer[0]]--;
-  count[buffer[176]]++;
+  count[buffer[size]]++;
 
   return result;
 }
 
 
-void scan_buffer(unsigned char * buffer, uint64_t size, uint64_t offset)
+void scan_buffer(unsigned char * buffer, size_t size, size_t offset)
 {
   uint64_t pos;
   for (pos = 0 ; pos < size ; ++pos)
   {
-    if (entropy(buffer + pos, AES128_KEY_SCHEDULE_SIZE))
+    int first = FALSE;
+    if (0 == offset +pos)
+      first = TRUE;
+    if (entropy(buffer + pos, AES128_KEY_SCHEDULE_SIZE,first))
       continue;
 
     if (valid_aes128_schedule(buffer + pos))
@@ -95,7 +119,7 @@ void scan_buffer(unsigned char * buffer, uint64_t size, uint64_t offset)
 // Use a sliding window scanner on the file to search for AES key schedules
 int scan_file(char * fn)
 {
-  uint64_t offset = 0;
+  size_t offset = 0, size;
   unsigned char * buffer;
   FILE * handle;
   size_t bytes_read;
@@ -106,12 +130,13 @@ int scan_file(char * fn)
   buffer = (unsigned char *)malloc(sizeof(unsigned char) * BUFFER_SIZE + WINDOW_SIZE);
   if (NULL == buffer)
     return TRUE;
-  memset(buffer, 0, BUFFER_SIZE + WINDOW_SIZE);
+  memset(buffer, 0, sizeof(unsigned char) * (BUFFER_SIZE + WINDOW_SIZE));
 
   handle = fopen(fn,"rb");
   if (NULL == handle)
   {
     perror(fn);
+    free(buffer);
     return TRUE;
   }
 
@@ -126,11 +151,10 @@ int scan_file(char * fn)
     //    printf ("Reading from 0x%"PRIx64"\n", ftello(handle));
 
     // Read into the buffer without overwriting the existing data
-    bytes_read = (uint64_t)fread(buffer + WINDOW_SIZE,1,BUFFER_SIZE,handle);
+    bytes_read = fread(buffer + WINDOW_SIZE,1,BUFFER_SIZE,handle);
 
     if (0 == offset)
     {      
-      uint64_t size;
       if (bytes_read < BUFFER_SIZE)
 	size = bytes_read;
       else
@@ -154,16 +178,21 @@ int scan_file(char * fn)
 
 int main(int argc, char **argv)
 {
-  if (argc != 2)
+  if (argc < 2)
   {
     printf ("FindAES version 1.1 by Jesse Kornblum\n");
     printf ("Searches for AES-128, AES-192, and AES-256 keys\n\n");
 
-    printf ("Usage: findaes [FILE]\n");
+    printf ("Usage: findaes [FILES]\n");
     return EXIT_FAILURE;
   }
 
-  scan_file(argv[1]);
+  int i = 1;
+  while (i < argc)
+  {
+    scan_file(argv[i]);
+    ++i;
+  }
 
   return EXIT_SUCCESS;
 }
