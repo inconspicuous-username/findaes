@@ -1,5 +1,5 @@
 # Findaes
-This is a copy of the proejct by Jesse Kornblum hosted on [Sourceforge](https://sourceforge.net/projects/findaes/).
+This is a copy of the project by Jesse Kornblum hosted on [Sourceforge](https://sourceforge.net/projects/findaes/).
 Since usefull stuff has the habbit of dissapearing from the internet, created this repo to have a personal copy for me and others whomight find this tool useful.
 
 I am in no way claiming authorship to these files. The Sourceforge project does not contain any license, since it is not my place to relicense this code I cannot add a license on this repo either.
